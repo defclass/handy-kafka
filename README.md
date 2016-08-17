@@ -7,7 +7,7 @@ A Clojure library designed to support ...
 
 Add handy-kafka dependence:
 
-[![Clojars Project](https://img.shields.io/clojars/v/handy-kafka.svg)](https://clojars.org/handy-kafka)
+[![Clojars Project](https://img.shields.io/clojars/v/defclass/handy-kafka.svg)](https://clojars.org/defclass/handy-kafka)
 
 Examples:
 
