@@ -1,16 +1,15 @@
 (ns handy-kafka.core
-  (:require  [clojure.core.async :refer [go]]
-             [clojure.walk :refer [keywordize-keys]]
-             [franzy.clients.consumer.client :as consumer]
-             [franzy.clients.consumer.protocols :refer :all]
-             [franzy.clients.consumer.defaults :as cd]
-             [franzy.serialization.json.deserializers :as json-deserializers]
-             [franzy.serialization.deserializers :as deserializers]
+  (:require [clojure.walk :refer [keywordize-keys]]
+            [franzy.clients.consumer.client :as consumer]
+            [franzy.clients.consumer.protocols :refer :all]
+            [franzy.clients.consumer.defaults :as cd]
+            [franzy.serialization.json.deserializers :as json-deserializers]
+            [franzy.serialization.deserializers :as deserializers]
 
-             [franzy.serialization.json.serializers :as json-serializers]
-             [franzy.serialization.serializers :as serializers]
-             [franzy.clients.producer.client :as producer]
-             [franzy.clients.producer.protocols :refer :all]))
+            [franzy.serialization.json.serializers :as json-serializers]
+            [franzy.serialization.serializers :as serializers]
+            [franzy.clients.producer.client :as producer]
+            [franzy.clients.producer.protocols :refer :all]))
 
 ;;; consumer
 
@@ -58,22 +57,23 @@
             value-deserializer (json-deserializers/json-deserializer)
             options (cd/make-default-consumer-options)
             topic-partitions topic-partitions]
-        (go
-          (with-open [c (consumer/make-consumer cc key-deserializer value-deserializer options)]
-            (assign-partitions! c topic-partitions)
-            (doseq [topic-partition topic-partitions]
-              (next-offset c topic-partition))
-            (loop []
-              (let [cr (poll! c)]
-                (doseq [msg cr]
-                  (try
-                    (handler-fn (keywordize-keys msg))
-                    (catch Exception e
-                      (error-fn e msg))
-                    (finally
-                      (commit-offsets-async! c {(select-keys msg [:topic :partiton]) (:offset msg)}))))
-                (when (available? service-key)
-                  (recur)))))))))
+        (letfn [(do-consume []
+                  (with-open [c (consumer/make-consumer cc key-deserializer value-deserializer options)]
+                    (assign-partitions! c topic-partitions)
+                    (doseq [topic-partition topic-partitions]
+                      (next-offset c topic-partition))
+                    (loop []
+                      (let [cr (poll! c)]
+                        (doseq [msg cr]
+                          (try
+                            (handler-fn (keywordize-keys msg))
+                            (catch Exception e
+                              (error-fn e msg))
+                            (finally
+                              (commit-offsets-async! c {(select-keys msg [:topic :partiton]) (:offset msg)}))))
+                        (when (available? service-key)
+                          (recur))))))]
+          (future (do-consume))))))
 
 ;;; producer
 
