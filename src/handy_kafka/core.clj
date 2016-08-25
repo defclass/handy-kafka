@@ -37,6 +37,12 @@
                               "group.id"           "franzy.consumer"
                               "auto.offset.reset"  "earliest"})
 
+(defn default-error-fn [& body]
+  (let [m (group-by #(isa? (class %) Exception) body)]
+    (println "Exception environment reference:")
+    (prn (get m false))
+    (throw (first (get m true)))))
+
 (defn mount-a-consumer-service
   "service-key: used to stop the service
    partition: specify the kafka topic and parition
@@ -45,7 +51,7 @@
    (mount-a-consumer-service :abc prn {:topic-partitions [{:topic \"api-request\" :partition 0}]} )
    to start consume. "
   [service-key handler-fn {:keys [error-fn config-map topic-partitions]
-                           :or   {error-fn (fn [x] (throw x)) config-map default-consumer-config}}]
+                           :or   {error-fn default-error-fn config-map default-consumer-config}}]
   (do (mark-service-available service-key)
       (let [cc config-map
             key-deserializer (deserializers/keyword-deserializer)
@@ -63,7 +69,7 @@
                   (try
                     (handler-fn (keywordize-keys msg))
                     (catch Exception e
-                      (error-fn e))
+                      (error-fn e msg))
                     (finally
                       (commit-offsets-async! c {(select-keys msg [:topic :partiton]) (:offset msg)}))))
                 (when (available? service-key)

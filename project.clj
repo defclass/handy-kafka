@@ -1,4 +1,4 @@
-(defproject defclass/handy-kafka "0.1.1"
+(defproject defclass/handy-kafka "0.1.2"
   :description "A Clojure library designed to support..."
   :url "https://github.com/your-github-name/handy-kafka"
   :license {:name "Eclipse Public License"
