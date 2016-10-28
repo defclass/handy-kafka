@@ -9,8 +9,7 @@
             [franzy.serialization.json.serializers :as json-serializers]
             [franzy.serialization.serializers :as serializers]
             [franzy.clients.producer.client :as producer]
-            [franzy.clients.producer.protocols :refer :all])
-  (:import franzy.serialization.json.deserializers.JsonDeserializer))
+            [franzy.clients.producer.protocols :refer :all]))
 
 ;;; consumer
 
