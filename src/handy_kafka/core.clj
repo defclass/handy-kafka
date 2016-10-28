@@ -9,7 +9,8 @@
             [franzy.serialization.json.serializers :as json-serializers]
             [franzy.serialization.serializers :as serializers]
             [franzy.clients.producer.client :as producer]
-            [franzy.clients.producer.protocols :refer :all]))
+            [franzy.clients.producer.protocols :refer :all])
+  (:import franzy.serialization.json.deserializers.JsonDeserializer))
 
 ;;; consumer
 
@@ -50,32 +51,34 @@
    (mount-a-consumer-service :abc prn {:topic-partitions [{:topic \"api-request\" :partition 0}]} )
    to start consume. "
   [service-key handler-fn {:keys [error-fn config-map topic-partitions]
-                           :or   {error-fn default-error-fn config-map default-consumer-config}}]
+                           :or {error-fn default-error-fn config-map default-consumer-config}}]
   (if (available? service-key)
     (throw (ex-info (format "Key [%s] is runing.." service-key) {:type :kafka-consumer-key-already-running}))
     (do (mark-service-available service-key)
-       (let [cc config-map
-             key-deserializer (deserializers/keyword-deserializer)
-             value-deserializer (json-deserializers/json-deserializer)
-             options (cd/make-default-consumer-options)
-             topic-partitions topic-partitions]
-         (letfn [(do-consume []
-                   (with-open [c (consumer/make-consumer cc key-deserializer value-deserializer options)]
-                     (assign-partitions! c topic-partitions)
-                     (doseq [topic-partition topic-partitions]
-                       (next-offset c topic-partition))
-                     (loop []
-                       (let [cr (poll! c)]
-                         (doseq [msg cr]
-                           (try
-                             (handler-fn (keywordize-keys msg))
-                             (catch Exception e
-                               (error-fn e msg))
-                             (finally
-                               (commit-offsets-async! c {(select-keys msg [:topic :partiton]) (:offset msg)}))))
-                         (when (available? service-key)
-                           (recur))))))]
-           (future (do-consume)))))))
+        (let [cc config-map
+              key-deserializer (deserializers/keyword-deserializer)
+              value-deserializer (json-deserializers/json-deserializer)
+              options (cd/make-default-consumer-options)
+              topic-partitions topic-partitions]
+          (letfn [(do-consume []
+                    (try (with-open [c (consumer/make-consumer cc key-deserializer value-deserializer options)]
+                           (assign-partitions! c topic-partitions)
+                           (doseq [topic-partition topic-partitions]
+                             (next-offset c topic-partition))
+                           (loop []
+                             (let [cr (poll! c)]
+                               (doseq [msg cr]
+                                 (try
+                                   (handler-fn (keywordize-keys msg))
+                                   (catch Exception e
+                                     (error-fn e msg))
+                                   (finally
+                                     (commit-offsets-async! c {(select-keys msg [:topic :partiton]) (:offset msg)}))))
+                               (when (available? service-key)
+                                 (recur)))))
+                         (catch Exception e
+                           (error-fn e))))]
+            (future (do-consume)))))))
 
 ;;; producer
 
