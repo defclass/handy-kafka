@@ -9,7 +9,9 @@
             [franzy.serialization.json.serializers :as json-serializers]
             [franzy.serialization.serializers :as serializers]
             [franzy.clients.producer.client :as producer]
-            [franzy.clients.producer.protocols :refer :all]))
+            [franzy.clients.producer.protocols :refer :all]
+            [clojure.core.async :as async]
+            [taoensso.timbre :as t]))
 
 ;;; consumer
 
@@ -37,10 +39,10 @@
                               "auto.offset.reset"  "earliest"})
 
 (defn default-error-fn [& body]
-  (let [m (group-by #(isa? (class %) Exception) body)]
-    (println "Exception environment reference:")
-    (prn (get m false))
-    (throw (first (get m true)))))
+  (t/error body)
+  (doseq [m body]
+    (when (isa? (class m) Exception)
+      (throw m))))
 
 (defn mount-a-consumer-service
   "service-key: used to stop the service
@@ -77,7 +79,8 @@
                                  (recur)))))
                          (catch Exception e
                            (error-fn e))))]
-            (future (do-consume)))))))
+            (let [g (async/go (do-consume))]
+              (future (async/<!! g))))))))
 
 ;;; producer
 
