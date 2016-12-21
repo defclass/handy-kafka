@@ -34,9 +34,9 @@
 (def all-services (setup-kafka-cosume-state :all))
 
 
-(def default-consumer-config {"bootstrap.servers"  "127.0.0.1:9092"
-                              "group.id"           "franzy.consumer"
-                              "auto.offset.reset"  "earliest"})
+(def default-consumer-config {"bootstrap.servers" ["127.0.0.1:9092"]
+                              "group.id" "franzy.consumer"
+                              "auto.offset.reset" "earliest"})
 
 (defn default-error-fn [& body]
   (t/error body)
